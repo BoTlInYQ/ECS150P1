@@ -17,7 +17,7 @@
 int main(void)
 {
         char cmd[CMDLINE_MAX];
-        char cwd[PATHLEN_MAX];
+        //char cwd[PATHLEN_MAX];
 
         pid_t pid;
 
@@ -25,7 +25,7 @@ int main(void)
                 char *nl;
                 char *args[CMDARGU_MAX + 1]; // +1 stand for the NULL pointer
                 char *token;
-                int retval;
+                //int retval;
                 int status;
                 int arg_counts = 0;
 
