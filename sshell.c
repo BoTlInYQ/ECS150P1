@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <fcntl.h>
 
 #define CMDLINE_MAX 512 //The maximum length of a command line never exceeds 512 characters.
 #define CMDARGU_MAX 16 //A program has a maximum of 16 non-null arguments.
@@ -14,35 +15,89 @@
 struct Command{
         char cmd[CMDLINE_MAX];
         char *args[CMDARGU_MAX + 1]; // +1 for the NULL pointer
+        char *outputFile;
 };
 
 void print_complete_message(char *cmd, int status){
         fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(status));
 }
 
+/*check for redirection signal '>'*/
+int redirection(char* cmd){
+        if(strchr(cmd,'>') != NULL && strstr(cmd,">>") == NULL){
+                return 1;
+        }else{
+                return 0;
+        }
+}
+
+/*check for append signal '>>'*/
+int append(char* cmd){
+        if(strstr(cmd,">>") != NULL){
+                return 1;
+        }else{
+                return 0;
+        }
+}
+
+/*check for pipe signal '|'*/
+int pipeline(char* cmd){
+        if(strchr(cmd,'|') != NULL){
+                return 1;
+        }else{
+                return 0;
+        }       
+}
+
 // Function to initialize a Command instance
-void initCommand(struct Command *command, const char *cmdLine) {
+int initCommand(struct Command *command, const char *cmdLine) {
         char *token;
-        int argCount = 0;
+        char *spaceDelimiter = " ";
+        int arg_count = 0;
 
         strncpy(command->cmd, cmdLine, sizeof(command->cmd));
         command->cmd[sizeof(command->cmd) - 1] = '\0';
 
         // Initialize args array
-        token = strtok(command->cmd, " ");
-        while (token != NULL && argCount < CMDARGU_MAX) {
+        token = strtok(command->cmd, spaceDelimiter);
+        while (token != NULL && arg_count < CMDARGU_MAX) {
                 if (strlen(token) < TOKEN_MAX){
-                        command->args[argCount++] = token;
-                        token = strtok(NULL, " ");
+                        command->args[arg_count++] = token;
+                        token = strtok(NULL, spaceDelimiter);
                 }else{
                         fprintf(stderr, "Error: reach token maximum\n");
+                        return 1;
+                }
+                if(arg_count >= CMDARGU_MAX){
+                        fprintf(stderr,"Error: too many process arguments\n");
+                        return 1;
                 }
         }
-        command->args[argCount] = NULL; // Set the last element to NULL
+
+        // Set remain args to NULL
+        while(arg_count < CMDARGU_MAX){
+                command->args[arg_count] = NULL;
+                arg_count++; 
+        }
+        return 0;
+}
+// Function to initialize a Command with redirection.
+int initCommand_redirection(struct Command *command, const char *cmdLine){
+
+}
+
+// Function to initialize a Command with pipeline.
+int initCommand_pipeline(struct Command *command, const char *cmdLine){
+
+}
+
+// Function to initialize a Command with appends.
+int initCommand_append(struct Command *command, const char *cmdLine){
+
 }
 
 // Function to execute a Command instance
-void executeCommand(const struct Command *command) {
+void executeCommand(struct Command *command) {
         pid_t pid;
         int status;
 
@@ -56,7 +111,7 @@ void executeCommand(const struct Command *command) {
                 // Parent process
                 wait(&status);
                 if (WIFEXITED(status)) {
-                        fprintf(stderr, "+ completed '%s' [%d]\n", command->cmd, WEXITSTATUS(status));
+                        print_complete_message(command->cmd, status);
                 }
         } else {
                 // Fork failed
@@ -129,8 +184,23 @@ int main(void)
                         *nl = '\0';
 
                 // Initialize Command instance
-                initCommand(&myCommand, cmd);
-
+                if(redirection(cmd)){
+                        status = initCommand_redirection(&myCommand, cmd);
+                        if(status)
+                                continue;
+                }else if(pipeline(cmd)){
+                        status = initCommand_pipeline(&myCommand, cmd);
+                        if(status)
+                                continue;
+                }else if(append(cmd)){
+                        status = initCommand_append(&myCommand, cmd);
+                        if(status)
+                                continue;
+                }else{
+                        status = initCommand(&myCommand, cmd);
+                        if(status)
+                                continue;
+                }
                 /* Handle built-in command "exit" */
                 if (!strcmp(myCommand.args[0], "exit")) {
                         status = handle_exit();
