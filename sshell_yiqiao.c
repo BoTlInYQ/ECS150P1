@@ -97,8 +97,14 @@ int initCommand_redirection(struct Command *command, const char *cmdLine){
         char *redirectionDelimiter = ">";
         int arg_count = 0;
 
-
         // Make a copy of cmdline to avoid modifying the original
+        strcpy(commandline_copy, cmdLine);
+        //check if the first character is redirection character and print error message if Yes
+        if (commandline_copy[0] ==  '>') {
+		fprintf(stderr, "Error: missing command\n");
+		return 1;
+	}
+
         strcpy(commandline_copy, cmdLine);
         
         //separate commandline into two parts.
@@ -106,14 +112,6 @@ int initCommand_redirection(struct Command *command, const char *cmdLine){
         cmd_after_redir = strtok(NULL, redirectionDelimiter);
         //ignore the lending space behind the redirection delimiter.
         cmd_after_redir = strtok(cmd_after_redir, spaceDelimiter);
-
-        strcpy(commandline_copy, cmdLine);
-
-        //check if the first character is redirection character and print error message if Yes
-        if (commandline_copy[0] ==  '>') {
-		fprintf(stderr, "Error: missing command\n");
-		return 1;
-	}
 
         if(cmd_after_redir == NULL){
                 command->outputFile = NULL; 
@@ -124,7 +122,7 @@ int initCommand_redirection(struct Command *command, const char *cmdLine){
         cmd = strtok(cmd_before_redir, spaceDelimiter);
         if (cmd != NULL) {
                 strcpy(command->cmd, cmd);
-                }
+        }
 
         while (cmd != NULL) {
                 // check if too many argument provided
@@ -204,7 +202,7 @@ int handle_pwd(){
         char cwd[CMDLINE_MAX];
 
         if (getcwd(cwd, sizeof(cwd)) != NULL) {
-                printf("%s\n", cwd);
+                fprintf(stdout, "%s\n", cwd);
                 return 0;
         } else {
                 perror("getcwd");
