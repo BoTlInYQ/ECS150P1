@@ -198,9 +198,16 @@ int executeCommand(Command *command, int is_redirection, int is_append) {
 }
 
 // Function to process pwd command.
-int handle_pwd(char* directory){
-        fprintf(stdout, "%s\n", directory);
-        return 0;
+int handle_pwd(){
+        char cwd[CMDLINE_MAX];
+
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+                fprintf(stdout, "%s\n", cwd);
+                return 0;
+        } else {
+                perror("getcwd");
+                return 1;
+        }
 }
 
 // Function to process cd command.
@@ -334,8 +341,7 @@ int main(void)
                         status = handle_cd(myCommand);
                         print_complete_message(cmd, status);
                 }else if(!strcmp(myCommand->args[0], "pwd")){// Handle built-in command "pwd" 
-                        getcwd(directory, sizeof(directory));
-                        status = handle_pwd(directory);
+                        status = handle_pwd();
                         print_complete_message(cmd, status);
                 }else if(!strcmp(myCommand->args[0], "sls")){
                         status = handle_sls();
