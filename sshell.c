@@ -4,16 +4,21 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <dirent.h>
 
 #define CMDLINE_MAX 512 //The maximum length of a command line never exceeds 512 characters.
 #define CMDARGU_MAX 16 //A program has a maximum of 16 non-null arguments.
-#define PATHLEN_MAX 32 //The maximum length of individual tokens never exceeds 32 characters.
+#define TOKEN_MAX 32 //The maximum length of individual tokens never exceeds 32 characters.
 
 /*Command properties*/
 struct Command{
         char cmd[CMDLINE_MAX];
         char *args[CMDARGU_MAX + 1]; // +1 for the NULL pointer
 };
+
+void print_complete_message(char *cmd, int status){
+        fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(status));
+}
 
 // Function to initialize a Command instance
 void initCommand(struct Command *command, const char *cmdLine) {
@@ -26,11 +31,16 @@ void initCommand(struct Command *command, const char *cmdLine) {
         // Initialize args array
         token = strtok(command->cmd, " ");
         while (token != NULL && argCount < CMDARGU_MAX) {
-                command->args[argCount++] = token;
-                token = strtok(NULL, " ");
+                if (strlen(token) < TOKEN_MAX){
+                        command->args[argCount++] = token;
+                        token = strtok(NULL, " ");
+                }else{
+                        fprintf(stderr, "Error: reach token maximum\n");
+                }
         }
         command->args[argCount] = NULL; // Set the last element to NULL
 }
+
 // Function to execute a Command instance
 void executeCommand(const struct Command *command) {
         pid_t pid;
@@ -53,6 +63,43 @@ void executeCommand(const struct Command *command) {
                 perror("fork");
                 exit(EXIT_FAILURE);
         }
+}
+
+// Function to process pwd command.
+int handle_pwd(){
+        char cwd[CMDLINE_MAX];
+
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+                printf("%s\n", cwd);
+                return 0;
+        } else {
+                perror("getcwd");
+                return 1;
+        }
+}
+
+// Function to process cd command.
+int handle_cd(const struct Command *command){
+        DIR * dir;
+
+        if (command->args[1] != NULL) {
+                dir = opendir(command->args[1]);
+                if(dir == NULL){
+                        fprintf(stderr, "Error: cannot cd into directory\n");
+                        return 1;         
+                }
+                chdir(command ->args[1]);
+                return 0;
+        } else {
+                fprintf(stderr, "cd: missing argument\n");
+                return 1;
+        }  
+}
+
+// Function to process exit command.
+int handle_exit(){
+        fprintf(stderr, "Bye...\n");
+        return 0;
 }
 
 int main(void)
@@ -81,21 +128,23 @@ int main(void)
                 if (nl)
                         *nl = '\0';
 
-                /* Handle built-in command "exit" */
-                if (!strcmp(cmd, "exit")) {
-                        fprintf(stderr, "Bye...\n");
-                        wait(&status);
-                        if(WIFEXITED(status)){
-                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(status));
-                        }
-                        break;
-                }
-
                 // Initialize Command instance
                 initCommand(&myCommand, cmd);
 
-                // Execute the Command
-                executeCommand(&myCommand);
+                /* Handle built-in command "exit" */
+                if (!strcmp(myCommand.args[0], "exit")) {
+                        status = handle_exit();
+                        print_complete_message(cmd, status);
+                        break;
+                }else if(!strcmp(myCommand.args[0], "cd")){ /* Handle built-in command "cd" */
+                        status = handle_cd(&myCommand);
+                        print_complete_message(cmd, status);
+                }else if(!strcmp(myCommand.args[0], "pwd")){/* Handle built-in command "pwd" */
+                        status = handle_pwd();
+                        print_complete_message(cmd, status);
+                }else{
+                        executeCommand(&myCommand);// Execute the Command
+                }
         }
 
         return EXIT_SUCCESS;
