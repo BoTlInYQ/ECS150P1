@@ -19,7 +19,7 @@ struct Command{
 };
 
 void print_complete_message(char *cmd, int status){
-        fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(status));
+        fprintf(stderr, "+ completed '%s' [%d]\n", cmd, status);
 }
 
 /*check for redirection signal '>'*/
@@ -81,9 +81,46 @@ int initCommand(struct Command *command, const char *cmdLine) {
         }
         return 0;
 }
+
 // Function to initialize a Command with redirection.
 int initCommand_redirection(struct Command *command, const char *cmdLine){
+        char *token;
+        char *spaceDelimiter = " ";
+        int arg_count = 0;
 
+        strncpy(command->cmd, cmdLine, sizeof(command->cmd));
+        command->cmd[sizeof(command->cmd) - 1] = '\0';
+
+        // Initialize args array
+        token = strtok(command->cmd, spaceDelimiter);
+
+        /*check if the first character is redirection character and print error message if Yes*/
+        if (token[0] ==  '>') {
+		fprintf(stderr, "Error: missing command\n");
+		return 1;
+	}
+
+
+        while (token != NULL && arg_count < CMDARGU_MAX) {
+                if (strlen(token) < TOKEN_MAX){
+                        command->args[arg_count++] = token;
+                        token = strtok(NULL, spaceDelimiter);
+                }else{
+                        fprintf(stderr, "Error: reach token maximum\n");
+                        return 1;
+                }
+                if(arg_count >= CMDARGU_MAX){
+                        fprintf(stderr,"Error: too many process arguments\n");
+                        return 1;
+                }
+        }
+
+        // Set remain args to NULL
+        while(arg_count < CMDARGU_MAX){
+                command->args[arg_count] = NULL;
+                arg_count++; 
+        }
+        return 0;
 }
 
 // Function to initialize a Command with pipeline.
@@ -143,7 +180,7 @@ int handle_cd(const struct Command *command){
                         fprintf(stderr, "Error: cannot cd into directory\n");
                         return 1;         
                 }
-                chdir(command ->args[1]);
+                chdir(command->args[1]);
                 return 0;
         } else {
                 fprintf(stderr, "cd: missing argument\n");
@@ -155,6 +192,36 @@ int handle_cd(const struct Command *command){
 int handle_exit(){
         fprintf(stderr, "Bye...\n");
         return 0;
+}
+
+int handle_sls(){
+        DIR *dirp;
+        struct dirent *dp;
+        struct stat file_stat;
+        
+        dirp = opendir(".");
+        if (dirp == NULL) {
+                printf("Error: cannot open directory\n");
+                return 1;
+        }
+        
+        while ((dp = readdir(dirp)) != NULL) {
+                // Skip "." and ".." entries
+                if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0) {
+                        continue;
+                }
+                // Obtain file information
+                if (stat(dp->d_name, &file_stat) == -1) {
+                        perror("stat");
+                        closedir(dirp);
+                        return 1;
+                }
+                // Print entry and its size
+                printf("%s (%ld bytes)\n", dp->d_name, (long)file_stat.st_size);
+        }
+        closedir(dirp);
+        return 0;
+
 }
 
 int main(void)
@@ -211,6 +278,9 @@ int main(void)
                         print_complete_message(cmd, status);
                 }else if(!strcmp(myCommand.args[0], "pwd")){/* Handle built-in command "pwd" */
                         status = handle_pwd();
+                        print_complete_message(cmd, status);
+                }else if(!strcmp(myCommand.args[0], "sls")){
+                        status = handle_sls();
                         print_complete_message(cmd, status);
                 }else{
                         executeCommand(&myCommand);// Execute the Command
