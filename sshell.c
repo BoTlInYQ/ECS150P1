@@ -9,26 +9,60 @@
 #define CMDARGU_MAX 16 //A program has a maximum of 16 non-null arguments.
 #define PATHLEN_MAX 32 //The maximum length of individual tokens never exceeds 32 characters.
 
-//Get user's cmd
-// void get_cmd(char word){
-        
-// }
+/*Command properties*/
+struct Command{
+        char cmd[CMDLINE_MAX];
+        char *args[CMDARGU_MAX + 1]; // +1 for the NULL pointer
+};
+
+// Function to initialize a Command instance
+void initCommand(struct Command *command, const char *cmdLine) {
+        char *token;
+        int argCount = 0;
+
+        strncpy(command->cmd, cmdLine, sizeof(command->cmd));
+        command->cmd[sizeof(command->cmd) - 1] = '\0';
+
+        // Initialize args array
+        token = strtok(command->cmd, " ");
+        while (token != NULL && argCount < CMDARGU_MAX) {
+                command->args[argCount++] = token;
+                token = strtok(NULL, " ");
+        }
+        command->args[argCount] = NULL; // Set the last element to NULL
+}
+// Function to execute a Command instance
+void executeCommand(const struct Command *command) {
+        pid_t pid;
+        int status;
+
+        pid = fork();
+        if (pid == 0) {
+                // Child process
+                execvp(command->args[0], command->args);
+                perror("execvp");
+                exit(EXIT_FAILURE);
+        } else if (pid > 0) {
+                // Parent process
+                wait(&status);
+                if (WIFEXITED(status)) {
+                        fprintf(stderr, "+ completed '%s' [%d]\n", command->cmd, WEXITSTATUS(status));
+                }
+        } else {
+                // Fork failed
+                perror("fork");
+                exit(EXIT_FAILURE);
+        }
+}
 
 int main(void)
 {
         char cmd[CMDLINE_MAX];
-        //char cwd[PATHLEN_MAX];
-
-        pid_t pid;
+        char *nl;
+        int status;
+        struct Command myCommand;
 
         while (1) {
-                char *nl;
-                char *args[CMDARGU_MAX + 1]; // +1 stand for the NULL pointer
-                char *token;
-                //int retval;
-                int status;
-                int arg_counts = 0;
-
                 /* Print prompt */
                 printf("sshell@ucd$ ");
                 fflush(stdout);
@@ -50,35 +84,18 @@ int main(void)
                 /* Handle built-in command "exit" */
                 if (!strcmp(cmd, "exit")) {
                         fprintf(stderr, "Bye...\n");
-                        break;
-                }
-
-                pid = fork();
-                if(pid == 0){
-                        token = strtok(cmd, " ");
-                        while (token != NULL && arg_counts < CMDARGU_MAX) {
-                                args[arg_counts++] = token;
-                                token = strtok(NULL, " ");
-                        }
-                        args[arg_counts] = NULL;
-
-                        execvp(args[0], args);
-                        perror("execvp");
-                        exit(1);
-                }else if (pid > 0){
                         wait(&status);
                         if(WIFEXITED(status)){
                                 fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(status));
                         }
-                }else{
-                        perror("fork");
-                        exit(1);
+                        break;
                 }
 
-                // /* Regular command */
-                // retval = system(cmd);
-                // fprintf(stdout, "Return status value for '%s': %d\n",
-                //         cmd, retval);
+                // Initialize Command instance
+                initCommand(&myCommand, cmd);
+
+                // Execute the Command
+                executeCommand(&myCommand);
         }
 
         return EXIT_SUCCESS;
