@@ -18,6 +18,11 @@ typedef struct{
         char *outputFile;
 }Command;
 
+typedef struct{
+        Command *pipicommands[4];
+        int numCommands;
+}Pipe;
+
 void print_complete_message(char *cmd, int status){
         fprintf(stderr, "+ completed '%s' [%d]\n", cmd, status);
 }
@@ -87,7 +92,7 @@ int initCommand(Command *command, char *cmdLine) {
 }
 
 // Function to initialize a Command with redirection.
-int initCommand_redirection(Command *command, const char *cmdLine){
+int initCommand_redirection(Command *command, char *cmdLine){
         char commandline_copy[CMDLINE_MAX];
         char *cmd;
         char *cmd_before_redir;
@@ -145,20 +150,17 @@ int initCommand_redirection(Command *command, const char *cmdLine){
 }
 
 // Function to initialize a Command with pipeline.
-int initCommand_pipeline(Command *command, const char *cmdLine){
+int initCommand_pipeline(Command *command, char *cmdLine){
         return 1;
 }
 
-// Function to initialize a Command with appends.
-int initCommand_append(Command *command, const char *cmdLine){
-        return 1;
-}
 
-// Function to execute a Command instance
+// Function to execute a Command and handle with the redirection and append function without pipeline
 int executeCommand(Command *command, int is_redirection, int is_append) {
         pid_t pid;
         int fd;
         int status;
+        int executeStatus = 1;
 
         pid = fork();
         if (pid == 0) {
@@ -166,7 +168,7 @@ int executeCommand(Command *command, int is_redirection, int is_append) {
                 if(is_redirection){
                         if(command->outputFile == NULL){
                                 fprintf(stderr, "Error: no output file\n");
-				exit(1); 
+				return executeStatus; 
                         }
                         if(is_append){
                                 fd = open(command->outputFile, O_WRONLY | O_CREAT | O_APPEND, 0644);
@@ -181,22 +183,24 @@ int executeCommand(Command *command, int is_redirection, int is_append) {
                         close(fd);
                 }
                 execvp(command->cmd, command->args);
-                perror("execvp");
-                exit(EXIT_FAILURE);
+                fprintf(stderr, "Error: command not found\n");
+                print_complete_message(command->args[0], executeStatus);
+                exit(1);
         } else if (pid > 0) {
                 // Parent process
-                wait(&status);
-                if (WIFEXITED(status)) {
-                        return 0;
-                }
+		waitpid(pid, &status, 0);
+		executeStatus = WEXITSTATUS(status);
         } else {
                 // Fork failed
                 perror("fork");
-                exit(EXIT_FAILURE);
+                exit(1);
         }
-        return 1;
+        return executeStatus;
 }
 
+int executeCommand_pipe(Command *command, int is_redirection, int is_append){
+        return 1;
+}
 // Function to process pwd command.
 int handle_pwd(){
         char cwd[CMDLINE_MAX];
@@ -347,11 +351,22 @@ int main(void)
                         status = handle_sls();
                         print_complete_message(cmd, status);
                 }else{
-                        status = executeCommand(myCommand, is_redirection, is_append);// Execute the Command                              
-                        if (status){
-                                continue;
-                        }
-                        print_complete_message(cmd, status);        
+                        if(!is_pipe){
+                                status = executeCommand(myCommand, is_redirection, is_append);// Execute the Command                              
+                                if (status){
+                                        free(cmdCopy);
+                                        free(myCommand);
+                                        continue;
+                                }
+                                print_complete_message(cmd, status);    
+                        }else{
+                                status = executeCommand_pipe(myCommand, is_redirection, is_append);
+                                if(status){
+                                        free(cmdCopy);
+                                        free(myCommand);
+                                        continue;
+                                }
+                        }    
                 }
 
                 free(cmdCopy);
