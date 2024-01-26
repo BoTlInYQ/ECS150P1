@@ -1,14 +1,14 @@
+#include <dirent.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
 #include <sys/types.h>
-#include <dirent.h>
-#include <fcntl.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-#define CMDLINE_MAX 512 //The maximum length of a command line never exceeds 512 characters.
 #define CMDARGU_MAX 16 //A program has a maximum of 16 non-null arguments.
+#define CMDLINE_MAX 512 //The maximum length of a command line never exceeds 512 characters.
 #define TOKEN_MAX 32 //The maximum length of individual tokens never exceeds 32 characters.
 
 //Command properties
@@ -23,6 +23,7 @@ typedef struct{
         int numCommands;
 }Pipe;
 
+//Function to print completion message
 void print_complete_message(char *cmd, int status){
         fprintf(stderr, "+ completed '%s' [%d]\n", cmd, status);
 }
@@ -57,8 +58,8 @@ int pipeline(char* cmd){
 // Function to initialize a Command instance
 int initCommand(Command *command, char *cmdLine) {
         char commandline_copy[CMDLINE_MAX];
-        char *spaceDelimiter = " ";
         char *cmd;
+        char *spaceDelimiter = " ";
         int arg_count = 0;
         
          // Make a copy of cmdline to avoid modifying the original
@@ -95,11 +96,11 @@ int initCommand(Command *command, char *cmdLine) {
 int initCommand_redirection(Command *command, char *cmdLine){
         char commandline_copy[CMDLINE_MAX];
         char *cmd;
-        char *cmd_before_redir;
         char *cmd_after_redir;
+        char *cmd_before_redir;
         char *file;
-        char *spaceDelimiter = " ";
         char *redirectionDelimiter = ">";
+        char *spaceDelimiter = " ";
         int arg_count = 0;
 
         // Make a copy of cmdline to avoid modifying the original
@@ -157,10 +158,10 @@ int initCommand_pipeline(Command *command, char *cmdLine){
 
 // Function to execute a Command and handle with the redirection and append function without pipeline
 int executeCommand(Command *command, int is_redirection, int is_append) {
-        pid_t pid;
         int fd;
-        int status;
         int executeStatus = 1;
+        int status;
+        pid_t pid;
 
         pid = fork();
         if (pid == 0) {
@@ -274,38 +275,39 @@ int main(void)
         char cmd[CMDLINE_MAX];
         char directory[CMDLINE_MAX];
         char *nl;
-        int status;
-        int is_redirection;
-        int is_pipe;
         int is_append;
+        int is_pipe;
+        int is_redirection;
+        int status;
 
         while (1) {
                 //Initialize flag and structure.
-                is_redirection = 0;
-                is_pipe = 0;
-                is_append = 0;
-                Command *myCommand = malloc(sizeof(Command));
                 char *cmdCopy;
-                
+                Command *myCommand = malloc(sizeof(Command));
+                is_append = 0;
+                is_pipe = 0;
+                is_redirection = 0;
+
                 /* Print prompt */
                 printf("sshell@ucd$ ");
                 fflush(stdout);
 
-                /* Get command line */
+                // Get command line 
                 fgets(cmd, CMDLINE_MAX, stdin);
 
-                /* Print command line if stdin is not provided by terminal */
+                // Print command line if stdin is not provided by terminal 
                 if (!isatty(STDIN_FILENO)) {
                         printf("%s", cmd);
                         fflush(stdout);
                 }
 
-                /* Remove trailing newline from command line */
+                // Remove trailing newline from command line 
                 nl = strchr(cmd, '\n');
                 if (nl)
                         *nl = '\0';
                 
-                //Parsing command line
+
+                //Parsing command line checking flags
                 cmdCopy = strdup(cmd);
                 if(redirection(cmdCopy)){
                         is_redirection = 1;
@@ -336,23 +338,22 @@ int main(void)
                                 continue;
                 }
 
-                /* Handle built-in command "exit" */
-                if (!strcmp(myCommand->args[0], "exit")) {
+                if (!strcmp(myCommand->args[0], "exit")) {// Handle built-in command "exit" 
                         status = handle_exit();
                         print_complete_message(cmd, status);
                         break;
-                }else if(!strcmp(myCommand->args[0], "cd")){ // Handle built-in command "cd" 
+                }else if(!strcmp(myCommand->args[0], "cd")){// Handle built-in command "cd" 
                         status = handle_cd(myCommand);
                         print_complete_message(cmd, status);
                 }else if(!strcmp(myCommand->args[0], "pwd")){// Handle built-in command "pwd" 
                         status = handle_pwd();
                         print_complete_message(cmd, status);
-                }else if(!strcmp(myCommand->args[0], "sls")){
+                }else if(!strcmp(myCommand->args[0], "sls")){// Handle built-in command "sls" 
                         status = handle_sls();
                         print_complete_message(cmd, status);
                 }else{
                         if(!is_pipe){
-                                status = executeCommand(myCommand, is_redirection, is_append);// Execute the Command                              
+                                status = executeCommand(myCommand, is_redirection, is_append);// Execute single command                              
                                 if (status){
                                         free(cmdCopy);
                                         free(myCommand);
@@ -360,12 +361,13 @@ int main(void)
                                 }
                                 print_complete_message(cmd, status);    
                         }else{
-                                status = executeCommand_pipe(myCommand, is_redirection, is_append);
+                                status = executeCommand_pipe(myCommand, is_redirection, is_append);// Execute pipeline command
                                 if(status){
                                         free(cmdCopy);
                                         free(myCommand);
                                         continue;
                                 }
+                                print_complete_message(cmd, status); 
                         }    
                 }
 
