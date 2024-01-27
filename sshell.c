@@ -179,10 +179,10 @@ int init_command_redirection(Command *command, char *cmdLine){
 // Function to initialize a Command with pipeline.
 int init_command_pipeline(Pipe *pipe, char *cmdLine){
         char *commandline_copy = malloc(CMDLINE_MAX * sizeof(char));
-        char *fragment1;
-        char *fragment2;
-        char *fragment3;
-        char *fragment4;
+        char *fragment1 = malloc(TOKEN_MAX *sizeof(char));
+        char *fragment2 = malloc(TOKEN_MAX *sizeof(char));
+        char *fragment3 = malloc(TOKEN_MAX *sizeof(char));
+        char *fragment4 = malloc(TOKEN_MAX *sizeof(char));
         char *fragment_left;
         char *fragment_right;
         char *pipe_meta = "|";
@@ -331,12 +331,13 @@ int init_command_pipeline(Pipe *pipe, char *cmdLine){
 
         // Free allocated memory
         free(commandline_copy);
-
+        free(fragment1);
+        free(fragment2);
+        free(fragment3);
+        free(fragment4);
         return 0;
 
 }
-
-
 
 // Function to execute a Command and handle with the redirection and append function without pipeline
 int execute_command(Command *command, int is_redirection, int is_append) {
