@@ -18,7 +18,7 @@ Each command has a command name (cmd), an array of arguments (args), and an opti
 
 2. Input/Output Redirection
 To support output redirection, the program defines the redirection function, which detects the
-'>' signal, and the append function, which detects the '>>' signal. These functions enable the
+```>``` signal, and the append function, which detects the ```>>``` signal. These functions enable the
 redirection of standard output to a specified file. The initCommand_redirection function
 initializes a command with redirection. 
 
