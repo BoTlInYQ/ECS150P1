@@ -387,7 +387,7 @@ int* execute_command_pipe(Pipe *pipeline, int is_redirection){
         int fd1[2];
 	int fd2[2];
 	int fd3[2];
-        int status[4];
+        int status[4] = {0};
 	pid_t pid1;
 	pid_t pid2;
 	pid_t pid3;
@@ -396,25 +396,33 @@ int* execute_command_pipe(Pipe *pipeline, int is_redirection){
 
         	if (pipe_index == 1) {//Only one pipe character 
 		pipe(fd1); // Create a pipe
-		pid1 = fork(); // Execute the first command in pipe
-		if (pid1 == 0) {
-			// Child
-			close(fd1[0]); // Close the pipe input
-			dup2(fd1[1], STDOUT_FILENO); // Output to pipe
-			close(fd1[1]); // Close the pipe output
+		pid1 = fork(); 
+		if (pid1 == 0) {// Execute the first command in pipe
+			// Child 1
+			close(fd1[0]);// No need for read access
+			dup2(fd1[1], STDOUT_FILENO);// Replace stdout with pipe
+			close(fd1[1]);// Close unused FD
 			execvp(pipeline->pipe_commands1->cmd, pipeline->pipe_commands1->args);
 			perror("execvp");
+                        executeStatus[0] = 1;
 			exit(1);
 
-		} else if (pid1 != 0) {
-			// Parent
-			waitpid(pid1, &status[0],0);
-			executeStatus[0] = WEXITSTATUS(status[0]);
+		} else if (pid1 < 0) {
+                        // Fork failed
+                        perror("fork");
+                        exit(1);
 		}
 		pid2 = fork(); //Execute the second command in pipe
 		if (pid2 == 0) {
-			// Child
-			if (is_redirection) { // If there is redirection
+			// Child 2
+			if (!is_redirection) {// No redirection
+                                close(fd1[1]); // No need for write access
+				dup2(fd1[0], STDIN_FILENO); // Replace stdin with pipe
+				close(fd1[0]); // Close unused FD
+				execvp(pipeline->pipe_commands2->cmd, pipeline->pipe_commands2->args);
+				perror("execvp");
+				exit(1);
+			} else { // output redirection in pipe 2
 				close(fd1[1]); // Close the pipe output
 				dup2(fd1[0], STDIN_FILENO); // Input from pipe
 				close(fd1[0]); // Close the pipe input
@@ -429,78 +437,78 @@ int* execute_command_pipe(Pipe *pipeline, int is_redirection){
 				}
 				dup2(fd, STDOUT_FILENO); // Output to file
 				close(fd); // Close file
-				close(fd1[1]); // Close pipe output
-				dup2(fd1[0], STDIN_FILENO); // Input from pipe
-				close(fd1[0]); // Close pipe input
-				execvp(pipeline->pipe_commands2->cmd, pipeline->pipe_commands2->args);
-				perror("execvp");
-				exit(1);
-			} else { // No redirection
-				close(fd1[1]); // Close the pipe output
-				dup2(fd1[0], STDIN_FILENO); // Input from pipe
-				close(fd1[0]); // Close the pipe input
 				execvp(pipeline->pipe_commands2->cmd, pipeline->pipe_commands2->args);
 				perror("execvp");
 				exit(1);
 			}
-		} else if (pid2 != 0) {
+		} else if (pid2 > 0) {
 			// Parent
 			// Totally close pipe
 			close(fd1[0]);
 			close(fd1[1]);
+                        waitpid(pid1, &status[0],0);
 			waitpid(pid2, &status[1],0);
+                        executeStatus[0] = WEXITSTATUS(status[0]);
 			executeStatus[1] = WEXITSTATUS(status[1]);
-		}
+		}else{
+                        // Fork failed
+                        perror("fork");
+                        exit(1);
+                }
 
 	} else if(pipe_index == 2) { // 2 Pipes
 		pipe(fd1); // First pipe
 		pipe(fd2); // Second pipe
 		pid1 = fork();
-		if (pid1 == 0) { // Execute the first command in pipe
-			// Child
-			close(fd1[0]); // Close pipe1 input
-			dup2(fd1[1], STDOUT_FILENO); // Output to pipe1
-			close(fd1[1]); // Close pipe1 output
+		if (pid1 == 0) {// Execute the first command in pipe
+			// Child 1
+			close(fd1[0]);// No need for read access
+			dup2(fd1[1], STDOUT_FILENO);// Replace stdout with pipe
+			close(fd1[1]);// Close unused FD
 			execvp(pipeline->pipe_commands1->cmd, pipeline->pipe_commands1->args);
 			perror("execvp");
+                        executeStatus[0] = 1;
 			exit(1);
-		} else if (pid1 != 0) {
-			// Parent
-			waitpid(pid1, &status[0],0);
-			executeStatus[0] = WEXITSTATUS(status[0]);
+		} else if (pid1 < 0) {
+                        // Fork failed
+                        perror("fork");
+                        exit(1);
 		}
 		pid2 = fork();
 		if (pid2 == 0) { // Execute the second command in pipe
-			close(fd1[1]); // Close pipe1 output
-			dup2(fd1[0], STDIN_FILENO); // Input from pipe1
-			close(fd1[0]); // Close pipe1 input
-			// Pipe 1 ends
-			// Pipe 2 start
-			close(fd2[0]); // Close pipe2 input
-			dup2(fd2[1], STDOUT_FILENO); // Output to pipe2
-			close(fd2[1]);// Close pipe2 output
+                        close(fd1[1]); // No need for write access
+			dup2(fd1[0], STDIN_FILENO); // Replace stdin with pipe
+			close(fd1[0]); // Close unused FD
+
+                        //pipe2
+                        close(fd2[0]);// No need for read access
+			dup2(fd2[1], STDOUT_FILENO);// Replace stdout with pipe
+			close(fd2[1]);// Close unused FD
 			execvp(pipeline->pipe_commands2->cmd, pipeline->pipe_commands2->args);
 			perror("execvp");
 			exit(1);
-		} else if (pid2 != 0) {
-			// Parent
-			// Totally close pipe1
-			close(fd1[0]);
-			close(fd1[1]);
-			waitpid(pid2, &status[1],0);
-			executeStatus[1] = WEXITSTATUS(status[1]);
+		} else if (pid2 < 0) {
+                        // Fork failed
+                        perror("fork");
+                        exit(1);
 		}
 		pid3 = fork();
 		if (pid3 == 0) { // Execute the third command in pipe
-			if (is_redirection) { // If there is redirection
-				close(fd2[1]); // Close pipe2
-				dup2(fd2[0], STDIN_FILENO); // Input from pipe2
-				close(fd2[0]); // Close pipe2 input
+                	if (!is_redirection) {// No redirection
+                                close(fd2[1]); // No need for write access
+				dup2(fd2[0], STDIN_FILENO); // Replace stdin with pipe
+				close(fd2[0]); // Close unused FD
+				execvp(pipeline->pipe_commands3->cmd, pipeline->pipe_commands3->args);
+				perror("execvp");
+				exit(1);
+                        }else{// output redirection in pipe 3
+                        	close(fd2[1]); // Close the pipe output
+				dup2(fd2[0], STDIN_FILENO); // Input from pipe
+				close(fd2[0]); // Close the pipe input
 				if (pipeline->pipe_commands3->outputFile == NULL) {
 					fprintf(stderr, "Error: no output file\n");
 					exit(1);
 				}
-				int fd;
 				fd = open(pipeline->pipe_commands3->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 				if (fd == -1) {
 					fprintf(stderr, "Error: cannot open output file\n");
@@ -508,26 +516,20 @@ int* execute_command_pipe(Pipe *pipeline, int is_redirection){
 				}
 				dup2(fd, STDOUT_FILENO); // Output to file
 				close(fd); // Close file
-				close(fd2[1]); // Clode pipe2 output
-				dup2(fd2[0], STDIN_FILENO); // Input from pipe2
-				close(fd2[0]); // Close pipe2 input
-				execvp(pipeline->pipe_commands3->cmd, pipeline->pipe_commands3->args);
-				perror("execvp");
-				exit(1);
-			} else { // No redirection
-				close(fd2[1]); // Close pipe2 output
-				dup2(fd2[0], STDIN_FILENO); // Input from pipe2
-				close(fd2[0]); // Close pipe2 input
 				execvp(pipeline->pipe_commands3->cmd, pipeline->pipe_commands3->args);
 				perror("execvp");
 				exit(1);
 			}
 		}else if (pid3 != 0) {
-			// Parent
-			// Totally close pipe2
+                        close(fd1[0]);
+                        close(fd1[1]);
 			close(fd2[0]);
 			close(fd2[1]);
-			waitpid(pid3, &status[2],0);
+			waitpid(pid1, &status[0],0);
+                        waitpid(pid2, &status[1],0);
+                        waitpid(pid3, &status[2],0);
+			executeStatus[0] = WEXITSTATUS(status[0]);
+			executeStatus[1] = WEXITSTATUS(status[1]);
 			executeStatus[2] = WEXITSTATUS(status[2]);
 		}
 
@@ -536,76 +538,72 @@ int* execute_command_pipe(Pipe *pipeline, int is_redirection){
 		pipe(fd2);
 		pipe(fd3); // Third pipe
 		pid1 = fork();
-		if (pid1 == 0) { // Execute the first command in pipe
-			// Child
-			close(fd1[0]); // Close pipe1 input
-			dup2(fd1[1], STDOUT_FILENO); // Output to pipe1
-			close(fd1[1]); // Close pipe1 output
+		if (pid1 == 0) {// Execute the first command in pipe
+			// Child 1
+			close(fd1[0]);// No need for read access
+			dup2(fd1[1], STDOUT_FILENO);// Replace stdout with pipe
+			close(fd1[1]);// Close unused FD
 			execvp(pipeline->pipe_commands1->cmd, pipeline->pipe_commands1->args);
 			perror("execvp");
+                        executeStatus[0] = 1;
 			exit(1);
-		} else if (pid1 != 0) {
-			//Parent
-			waitpid(pid1, &status[0],0);
-			executeStatus[0] = WEXITSTATUS(status[0]);
-		}
 
-		pid2 = fork();
+		} else if (pid1 < 0) {
+                        // Fork failed
+                        perror("fork");
+                        exit(1);
+		}
 		if (pid2 == 0) { // Execute the second command in pipe
-			close(fd1[1]); // Close pipe1 output
-			dup2(fd1[0], STDIN_FILENO); // Input from pipe1
-			close(fd1[0]); // Close pipe1 input
-			// Pipe 1 ends
-			// Pipe 2 starts
-			close(fd2[0]); // Close pipe2 input
-			dup2(fd2[1], STDOUT_FILENO); // Output to pipe2
-			close(fd2[1]); // Close pipe2 output
+                        close(fd1[1]); // No need for write access
+			dup2(fd1[0], STDIN_FILENO); // Replace stdin with pipe
+			close(fd1[0]); // Close unused FD
+
+                        //pipe2
+                        close(fd2[0]);// No need for read access
+			dup2(fd2[1], STDOUT_FILENO);// Replace stdout with pipe
+			close(fd2[1]);// Close unused FD
 			execvp(pipeline->pipe_commands2->cmd, pipeline->pipe_commands2->args);
 			perror("execvp");
 			exit(1);
-		} else if (pid2 != 0) {
-			// Parent
-			// Totally close pipe1
-			close(fd1[0]);
-			close(fd1[1]);
-			waitpid(pid2, &status[1],0);
-			executeStatus[1] = WEXITSTATUS(status[1]);
+		} else if (pid2 < 0) {
+                        // Fork failed
+                        perror("fork");
+                        exit(1);
 		}
+		if (pid3 == 0) { // Execute the second command in pipe
+                        close(fd2[1]); // No need for write access
+			dup2(fd2[0], STDIN_FILENO); // Replace stdin with pipe
+			close(fd2[0]); // Close unused FD
 
-		pid3 = fork();
-		if (pid3 == 0) { // Execute the third command in pipe
-			close(fd2[1]); // Close pipe2 output
-			dup2(fd2[0], STDIN_FILENO); // Input from pipe2
-			close(fd2[0]); // Close pipe2 input
-			// Pipe2 ends
-			// Pipe2 starts
-			close(fd3[0]); // Close pipe3 input
-			dup2(fd3[1],STDOUT_FILENO); // Output to pipe3
-			close(fd3[1]); // Close pipe3 output
+                        //pipe3
+                        close(fd3[0]);// No need for read access
+			dup2(fd3[1], STDOUT_FILENO);// Replace stdout with pipe
+			close(fd3[1]);// Close unused FD
 			execvp(pipeline->pipe_commands3->cmd, pipeline->pipe_commands3->args);
 			perror("execvp");
 			exit(1);
-		} else if (pid3 != 0) {
-			// Parent
-			// Totally close pipe2
-			close(fd2[0]);
-			close(fd2[1]);
-			waitpid(pid3, &status[2],0);
-			executeStatus[2] = WEXITSTATUS(status[2]);
+		} else if (pid3 < 0) {
+                        // Fork failed
+                        perror("fork");
+                        exit(1);
 		}
 		pid4 = fork();
-		if (pid4 == 0) { // Execute the fouth command in pipe
-			if (is_redirection) { // If there is redirection
-				close(fd3[1]); // Close pipe3 output
-				dup2(fd3[0], STDIN_FILENO); // Input from pipe3
-				close(fd3[0]); // Close pipe3 input
-
-				if (pipeline->pipe_commands4->outputFile == NULL) {
+		if (pid4 == 0) { // Execute the third command in pipe
+                	if (!is_redirection) {// No redirection
+                                close(fd3[1]); // No need for write access
+				dup2(fd3[0], STDIN_FILENO); // Replace stdin with pipe
+				close(fd3[0]); // Close unused FD
+				execvp(pipeline->pipe_commands4->cmd, pipeline->pipe_commands4->args);
+				perror("execvp");
+				exit(1);
+                        }else{// output redirection in pipe 3
+                        	close(fd3[1]); // Close the pipe output
+				dup2(fd3[0], STDIN_FILENO); // Input from pipe
+				close(fd3[0]); // Close the pipe input
+				if (pipeline->pipe_commands3->outputFile == NULL) {
 					fprintf(stderr, "Error: no output file\n");
 					exit(1);
 				}
-
-				int fd;
 				fd = open(pipeline->pipe_commands4->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 				if (fd == -1) {
 					fprintf(stderr, "Error: cannot open output file\n");
@@ -613,26 +611,24 @@ int* execute_command_pipe(Pipe *pipeline, int is_redirection){
 				}
 				dup2(fd, STDOUT_FILENO); // Output to file
 				close(fd); // Close file
-				close(fd3[1]); // Close pipe3 output
-				dup2(fd3[0], STDIN_FILENO); // Input from pipe3
-				close(fd3[0]); // Close pipe3 input
-				execvp(pipeline->pipe_commands4->cmd, pipeline->pipe_commands4->args);
-				perror("execvp");
-				exit(1);
-			} else { // No redirection
-				close(fd3[1]); // Close pipe3 output
-				dup2(fd3[0], STDIN_FILENO); // Input from pipe3
-				close(fd3[0]); // Close pipe3 input
 				execvp(pipeline->pipe_commands4->cmd, pipeline->pipe_commands4->args);
 				perror("execvp");
 				exit(1);
 			}
 		} else if (pid4 != 0) {
-			// Parent
-			// Totally close pipe3
-			close(fd3[0]);
+                        close(fd1[0]);
+                        close(fd1[1]);
+			close(fd2[0]);
+			close(fd2[1]);
+                        close(fd3[0]);
 			close(fd3[1]);
-			waitpid(pid4, &status[3],0);
+			waitpid(pid1, &status[0],0);
+                        waitpid(pid2, &status[1],0);
+                        waitpid(pid3, &status[2],0);
+                        waitpid(pid4, &status[3],0);
+			executeStatus[0] = WEXITSTATUS(status[0]);
+			executeStatus[1] = WEXITSTATUS(status[1]);
+			executeStatus[2] = WEXITSTATUS(status[2]);
 			executeStatus[3] = WEXITSTATUS(status[3]);
 		}
 	}
