@@ -187,7 +187,9 @@ int init_command_pipeline(Pipe *pipe, char *cmdLine){
         char *fragment_right;
         char *pipe_meta = "|";
         char *space = " ";
-
+        int redirection2 = 0;
+        int redirection3 = 0;
+        int redirection4 = 0;
 
         // Make a copy of cmdline to avoid modifying the original
         strcpy(commandline_copy, cmdLine);
@@ -257,7 +259,7 @@ int init_command_pipeline(Pipe *pipe, char *cmdLine){
 
                                 strcpy(fragment3,fragment_left);
                                 strcpy(fragment4,fragment_right);
-                                
+
                                 if(redirection(fragment1) || redirection(fragment2) || redirection(fragment3)){
                                         //mislocated: have redirection in third pipe when fourth pipe exist.
                                         fprintf(stderr, "Error: mislocated output rediretion\n");
@@ -268,12 +270,18 @@ int init_command_pipeline(Pipe *pipe, char *cmdLine){
                                         fprintf(stderr, "Error: missing command\n");
                                         return 1;
                                 }
+                                if(redirection(fragment4)){
+                                        redirection4 = 1;
+                                }
                         }else{
                                 strcpy(fragment3,fragment_right);
                                 if(!strcmp(fragment3, " ")){
                                         //emptyspace 3rd pipe
                                         fprintf(stderr, "Error: missing command\n");
                                         return 1;
+                                }
+                                if(redirection(fragment3)){
+                                        redirection3 = 1;
                                 }
                         }
 
@@ -289,21 +297,36 @@ int init_command_pipeline(Pipe *pipe, char *cmdLine){
                         fprintf(stderr, "Error: missing command\n");
                         return 1;
                 }
+                if(redirection(fragment2)){
+                        redirection2 = 1;
+                }
 
         }
         init_command(pipe->pipe_commands1,fragment1);
 
         if(pipe_index == 1){
-                init_command_redirection(pipe->pipe_commands2,fragment2);
+                if(redirection2){
+                        init_command_redirection(pipe->pipe_commands2,fragment2);                        
+                }else{
+                        init_command(pipe->pipe_commands2,fragment2);
+                }
         }
         if(pipe_index == 2){
                 init_command(pipe->pipe_commands2,fragment2);
-                init_command_redirection(pipe->pipe_commands3,fragment3);
+                if(redirection3){
+                        init_command_redirection(pipe->pipe_commands3,fragment3);                        
+                }else{
+                        init_command(pipe->pipe_commands3,fragment3);
+                }
         }
         if(pipe_index == 3){
                 init_command(pipe->pipe_commands2,fragment2);
                 init_command(pipe->pipe_commands3,fragment3);
-                init_command_redirection(pipe->pipe_commands4,fragment4);
+                if(redirection4){
+                        init_command_redirection(pipe->pipe_commands4,fragment4);                        
+                }else{
+                        init_command(pipe->pipe_commands4,fragment4);
+                }
         }
 
         // Free allocated memory
