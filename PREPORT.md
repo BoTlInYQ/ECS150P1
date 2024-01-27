@@ -34,10 +34,8 @@ and append options. The executeCommand_pipe function is intended for handling pi
 although its implementation is incomplete.
 
 5. Built-in Commands
-The shell includes built-in commands such as ```cd```, ```pwd```, ```exit```, and
-
-  ```sls``` These commands are handled
-separately from external commands, providing functionality for navigation, listing files, and exiting the
+The shell includes built-in commands such as ```cd```, ```pwd```, ```exit```, and ```sls``` 
+These commands are handled separately from external commands, providing functionality for navigation, listing files, and exiting the
 shell.
 
 6. User Interface
