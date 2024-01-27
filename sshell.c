@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -115,7 +116,6 @@ int init_command_redirection(Command *command, char *cmdLine){
         char *cmd;
         char *cmd_after_redir;
         char *cmd_before_redir;
-        char *file;
         char *redirection_meta = ">";
         char *space = " ";
         int arg_count = 0;
@@ -677,7 +677,6 @@ int handle_sls(){
 int main(void)
 {
         char cmd[CMDLINE_MAX];
-        char directory[CMDLINE_MAX];
         char *nl;
         int is_append;
         int is_pipe;
