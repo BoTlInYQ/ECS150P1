@@ -75,8 +75,8 @@ int pipeline(char* cmd){
 
 // Function to initialize a Command instance
 int init_command(Command *command, char *cmdLine) {
-        char commandline_copy[CMDLINE_MAX];
         char *cmd;
+        char *commandline_copy = malloc(CMDLINE_MAX * sizeof(char));
         char *space_delimiter = " ";
         int arg_count = 0;
         
@@ -105,17 +105,21 @@ int init_command(Command *command, char *cmdLine) {
                 cmd = strtok(NULL, space_delimiter);
                 arg_count++;
         }
-        // Set the last element of command->args to NULL
-        command->args[arg_count] = NULL;
+        while(arg_count <= CMDARGU_MAX){
+                // Set unused element of command->args to NULL
+                command->args[arg_count] = NULL;
+                arg_count++;
+        }
+        free(commandline_copy);
         return 0;
 }
 
 // Function to initialize a Command with redirection.
 int init_command_redirection(Command *command, char *cmdLine){
-        char commandline_copy[CMDLINE_MAX];
         char *cmd;
         char *cmd_after_redir;
         char *cmd_before_redir;
+        char *commandline_copy = malloc(CMDLINE_MAX * sizeof(char));
         char *redirection_meta = ">";
         char *space = " ";
         int arg_count = 0;
@@ -167,6 +171,8 @@ int init_command_redirection(Command *command, char *cmdLine){
                 command->args[arg_count] = NULL;
                 arg_count++;
         }
+
+        free(commandline_copy);
         return 0;
 }
 
@@ -174,12 +180,12 @@ int init_command_redirection(Command *command, char *cmdLine){
 int init_command_pipeline(Pipe *pipe, char *cmdLine){
         char *commandline_copy = malloc(CMDLINE_MAX * sizeof(char));
         char *pipe_meta = "|";
-        char *fragment1 = malloc(TOKEN_MAX * sizeof(char));
-        char *fragment2 = malloc(TOKEN_MAX * sizeof(char));
-        char *fragment3 = malloc(TOKEN_MAX * sizeof(char));
-        char *fragment4 = malloc(TOKEN_MAX * sizeof(char));
-        char *fragment_left = malloc(TOKEN_MAX * sizeof(char));
-        char *fragment_right = malloc(TOKEN_MAX * sizeof(char));
+        char *fragment1;
+        char *fragment2;
+        char *fragment3;
+        char *fragment4;
+        char *fragment_left;
+        char *fragment_right;
 
         // Make a copy of cmdline to avoid modifying the original
         strcpy(commandline_copy, cmdLine);
@@ -290,13 +296,8 @@ int init_command_pipeline(Pipe *pipe, char *cmdLine){
                 init_command_redirection(pipe->pipe_commands4,fragment4);
         }
 
-        // Free allocated memory for fragments
-        free(fragment1);
-        free(fragment2);
-        free(fragment3);
-        free(fragment4);
-        free(fragment_left);
-        free(fragment_right);
+        // Free allocated memory
+        free(commandline_copy);
 
         return 0;
 
