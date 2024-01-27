@@ -28,15 +28,40 @@ pipeline signal. Although the initCommand_pipeline function is present, its impl
 completed.
 
 4. Execution Mechanism
-The program uses fork, wait, and execvp to execute commands in a child process.
+The program uses ```fork```, ```wait```, and ```execvp``` to execute commands in a child process.
 The executeCommand function handles the execution of a single command, considering output redirection
 and append options. The executeCommand_pipe function is intended for handling pipeline commands,
 although its implementation is incomplete.
 
 5. Built-in Commands
-The shell includes built-in commands such as "cd," "pwd," "sls," and "exit." These commands are handled
+The shell includes built-in commands such as ```cd```, ```pwd```, ```exit```, and
+
+  ```sls``` These commands are handled
 separately from external commands, providing functionality for navigation, listing files, and exiting the
 shell.
 
 6. User Interface
 The shell provides a simple command prompt (sshell@ucd$) where users can enter commands.
+
+## Execution Procedure
+Command Input:
+
+The program prompts the user with the shell prompt (sshell@ucd$).
+User inputs a command.
+Command Parsing:
+
+The program parses the entered command, checking for special signals like  ```>```, ```>>```, and ``|``.
+The appropriate initCommand function is called based on the presence of redirection, append, or pipeline.
+Command Execution:
+
+For non-pipeline commands, the program forks a child process, redirects output if needed, and executes the command using ```execvp```.
+For pipeline commands (incomplete), the program should set up pipes and execute commands in a sequence.
+Built-in Commands:
+
+If the command is a built-in command ("cd," "pwd," "sls," or "exit"), it is handled separately, and no child process is created.
+Completion Message:
+
+After command execution, the program prints a completion message, indicating the status and the command executed.
+Repeat:
+
+Steps 1-5 are repeated until the user enters the "exit" command.
