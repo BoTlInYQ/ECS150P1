@@ -19,7 +19,7 @@ is a design choice that adds modularity and clarity to the code.
 At the same time, there are Input/Output Redirection, Execution Mechanism,
 Built-in Commands to design our program.
 
-1 Command Structure
+1. Command Structure
 The program defines a Command structure to represent individual
 commands entered by the user. Each command has a command name (cmd),
 an array of arguments (args), and an optional output file
