@@ -553,6 +553,7 @@ int* execute_command_pipe(Pipe *pipeline, int is_redirection){
                         perror("fork");
                         exit(1);
 		}
+                pid2 = fork();
 		if (pid2 == 0) { // Execute the second command in pipe
                         close(fd1[1]); // No need for write access
 			dup2(fd1[0], STDIN_FILENO); // Replace stdin with pipe
@@ -570,6 +571,7 @@ int* execute_command_pipe(Pipe *pipeline, int is_redirection){
                         perror("fork");
                         exit(1);
 		}
+                pid3 = fork();
 		if (pid3 == 0) { // Execute the second command in pipe
                         close(fd2[1]); // No need for write access
 			dup2(fd2[0], STDIN_FILENO); // Replace stdin with pipe
