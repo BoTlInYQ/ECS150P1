@@ -15,9 +15,10 @@ familiar environment for users to interact with their system.
 ## Design Choices
 The decision to create two structures, one for the command and its 
 arguments (Command structure) and another for piping (Pipe structure), 
-is a design choice that adds modularity and clarity to the code
-.At the same time, there are Input/Output Redirection, Execution Mechanism,
+is a design choice that adds modularity and clarity to the code.
+At the same time, there are Input/Output Redirection, Execution Mechanism,
 Built-in Commands to design our program.
+
 1 Command Structure
 The program defines a Command structure to represent individual
 commands entered by the user. Each command has a command name (cmd),
