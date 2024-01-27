@@ -137,7 +137,7 @@ int init_command_redirection(Command *command, char *cmdLine){
         //separate commandline into two parts.
         cmd_before_redir =strtok(commandline_copy, redirection_meta);
         cmd_after_redir = strtok(NULL, redirection_meta);
-        //ignore the lending space behind the redirection delimiter.
+        //ignore the lending space behind the redirection character.
         cmd_after_redir = strtok(cmd_after_redir, space);
 
         if(cmd_after_redir == NULL){
@@ -179,13 +179,15 @@ int init_command_redirection(Command *command, char *cmdLine){
 // Function to initialize a Command with pipeline.
 int init_command_pipeline(Pipe *pipe, char *cmdLine){
         char *commandline_copy = malloc(CMDLINE_MAX * sizeof(char));
-        char *pipe_meta = "|";
         char *fragment1;
         char *fragment2;
         char *fragment3;
         char *fragment4;
         char *fragment_left;
         char *fragment_right;
+        char *pipe_meta = "|";
+        char *space = " ";
+
 
         // Make a copy of cmdline to avoid modifying the original
         strcpy(commandline_copy, cmdLine);
@@ -199,6 +201,8 @@ int init_command_pipeline(Pipe *pipe, char *cmdLine){
         strcpy(commandline_copy, cmdLine);
         fragment_left = strtok(commandline_copy, pipe_meta);
         fragment_right = strtok(NULL, pipe_meta);
+        //ignore the lending space behind the pipeline character.
+        fragment_right = strtok(fragment_right, space);
 
         if(fragment_left != NULL){
                 //1st pipe
@@ -223,6 +227,8 @@ int init_command_pipeline(Pipe *pipe, char *cmdLine){
                 strcpy(commandline_copy,fragment_right);
                 fragment_left = strtok(commandline_copy,pipe_meta);
                 fragment_right = strtok(NULL, pipe_meta);
+                //ignore the lending space behind the pipeline character.
+                fragment_right = strtok(fragment_right, space);
 
                 //check if second pipe have command.
                 if(fragment_left != NULL){
@@ -246,8 +252,12 @@ int init_command_pipeline(Pipe *pipe, char *cmdLine){
                                 strcpy(commandline_copy,fragment_right);
                                 fragment_left = strtok(commandline_copy,pipe_meta);
                                 fragment_right = strtok(NULL, pipe_meta);
+                                //ignore the lending space behind the pipeline character.
+                                fragment_right = strtok(fragment_right, space);
+
                                 strcpy(fragment3,fragment_left);
                                 strcpy(fragment4,fragment_right);
+                                
                                 if(redirection(fragment1) || redirection(fragment2) || redirection(fragment3)){
                                         //mislocated: have redirection in third pipe when fourth pipe exist.
                                         fprintf(stderr, "Error: mislocated output rediretion\n");
